@@ -1,30 +1,184 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 공부 플래너</title>
   <style>
-    body { width: 300px; padding: 15px; font-family: sans-serif; }
-    h2 { font-size: 16px; margin-top: 0; }
-    .section { margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-    input, button { padding: 5px; margin-top: 5px; }
+    body {
+      font-family: 'Malgun Gothic', sans-serif;
+      background-color: #f4f7f6;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 450px;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 20px; text-align: center; color: #333; margin-bottom: 20px; }
+    .card {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .card h2 { font-size: 15px; margin-top: 0; color: #555; }
+    .time-display {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      color: #2c3e50;
+      margin: 10px 0;
+    }
+    .btn-group {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+    }
+    button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      color: white;
+    }
+    .btn-start { background-color: #27ae60; }
+    .btn-stop { background-color: #e74c3c; }
+    .btn-reset { background-color: #7f8c8d; }
+    .btn-add { background-color: #3498db; width: 100%; margin-top: 5px; }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      margin-bottom: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    ul { padding-left: 20px; margin: 5px 0; font-size: 14px; }
+    li { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+    .delete-btn { background: #e74c3c; padding: 2px 6px; font-size: 11px; }
   </style>
 </head>
 <body>
-  <h2>집중 공부 플래너</h2>
-  
-  <div class="section">
-    <h3>타이머</h3>
-    <div id="timer" style="font-size: 24px; font-weight: bold;">25:00</div>
-    <button id="startBtn">시작</button>
-    <button id="resetBtn">리셋</button>
+
+  <div class="container">
+    <h1>📚 올인원 공부 플래너</h1>
+
+    <!-- 1. 과목 선택 및 타이머 / 스톱워치 -->
+    <div class="card">
+      <h2>⏱️ 공부 시간 측정</h2>
+      <select id="subjectSelect">
+        <option value="국어">국어</option>
+        <option value="수학">수학</option>
+        <option value="영어">영어</option>
+        <option value="사회/과학">사회/과학</option>
+        <option value="기타">기타</option>
+      </select>
+      <div id="timerDisplay" class="time-display">00:00:00</div>
+      <div class="btn-group">
+        <button id="startBtn" class="btn-start">시작</button>
+        <button id="stopBtn" class="btn-stop">정지</button>
+        <button id="resetBtn" class="btn-reset">초기화</button>
+      </div>
+    </div>
+
+    <!-- 2. 오늘 할 일 (To-Do) -->
+    <div class="card">
+      <h2>📝 오늘의 할 일</h2>
+      <input type="text" id="todoInput" placeholder="공부 목표나 할 일을 입력하세요">
+      <button id="addTodoBtn" class="btn-add">할 일 추가</button>
+      <ul id="todoList"></ul>
+    </div>
+
+    <!-- 3. 과목별 누적 공부 시간 통계 -->
+    <div class="card">
+      <h2>📊 과목별 누적 시간</h2>
+      <ul id="statsList">
+        <li>국어: <span id="time-국어">0분</span></li>
+        <li>수학: <span id="time-수학">0분</span></li>
+        <li>영어: <span id="time-영어">0분</span></li>
+        <li>사회/과학: <span id="time-사회/과학">0분</span></li>
+        <li>기타: <span id="time-기타">0분</span></li>
+      </ul>
+    </div>
   </div>
 
-  <div class="section">
-    <h3>할 일 & 차단 사이트</h3>
-    <input type="text" id="siteInput" placeholder="차단할 도메인 (예: youtube.com)">
-    <button id="blockBtn">사이트 차단</button>
-  </div>
+  <script>
+    // 데이터 관리 변수
+    let seconds = 0;
+    let timerInterval = null;
+    let isRunning = false;
+    let subjectTimes = { "국어": 0, "수학": 0, "영어": 0, "사회/과학": 0, "기타": 0 };
 
-  <script src="popup.js"></script>
+    const timerDisplay = document.getElementById('timerDisplay');
+    const subjectSelect = document.getElementById('subjectSelect');
+
+    // 시간 포맷 변환 함수 (초 -> 시:분:초)
+    function formatTime(totalSeconds) {
+      let h = Math.floor(totalSeconds / 3600);
+      let m = Math.floor((totalSeconds % 3600) / 60);
+      let s = totalSeconds % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // 타이머 시작
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (isRunning) return;
+      isRunning = true;
+      timerInterval = setInterval(() => {
+        seconds++;
+        timerDisplay.innerText = formatTime(seconds);
+        
+        // 현재 선택된 과목의 누적 시간 증가 (초 단위)
+        let currentSubj = subjectSelect.value;
+        subjectTimes[currentSubj]++;
+        updateStats();
+      }, 1000);
+    });
+
+    // 타이머 정지 (기록 저장)
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      isRunning = false;
+      clearInterval(timerInterval);
+    });
+
+    // 타이머 초기화
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      isRunning = false;
+      clearInterval(timerInterval);
+      seconds = 0;
+      timerDisplay.innerText = "00:00:00";
+    });
+
+    // 과목별 통계 화면 업데이트
+    function updateStats() {
+      for (let subj in subjectTimes) {
+        let totalSec = subjectTimes[subj];
+        let min = Math.floor(totalSec / 60);
+        document.getElementById(`time-${subj}`).innerText = `${min}분`;
+      }
+    }
+
+    // 할 일 추가 기능
+    document.getElementById('addTodoBtn').addEventListener('click', () => {
+      const input = document.getElementById('todoInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${text}</span> <button class="delete-btn" onclick="this.parentElement.remove()">삭제</button>`;
+      document.getElementById('todoList').appendChild(li);
+      input.value = '';
+    });
+  </script>
+
 </body>
 </html>
