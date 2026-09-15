@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 300px; padding: 15px; font-family: sans-serif; }
+    h2 { font-size: 16px; margin-top: 0; }
+    .section { margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+    input, button { padding: 5px; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <h2>집중 공부 플래너</h2>
+  
+  <div class="section">
+    <h3>타이머</h3>
+    <div id="timer" style="font-size: 24px; font-weight: bold;">25:00</div>
+    <button id="startBtn">시작</button>
+    <button id="resetBtn">리셋</button>
+  </div>
+
+  <div class="section">
+    <h3>할 일 & 차단 사이트</h3>
+    <input type="text" id="siteInput" placeholder="차단할 도메인 (예: youtube.com)">
+    <button id="blockBtn">사이트 차단</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
