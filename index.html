@@ -45,7 +45,7 @@
         <div id="ban-modal" class="absolute inset-0 bg-black/50 hidden flex justify-center items-center p-4">
             <div class="bg-white w-full max-w-xs rounded-xl p-4 flex flex-col max-h-[80%]">
                 <div class="flex justify-between items-center mb-3 border-b pb-2">
-                    <span class="font-bold text-sm text-gray-800">차단(밴)된 유저 목록</span>
+                    <span class="font-bold text-sm text-gray-800">밴된 유저 목록</span>
                     <button onclick="closeBanModal()" class="text-gray-500 font-bold text-sm">✕</button>
                 </div>
                 <div id="ban-list-container" class="flex-1 overflow-y-auto space-y-2 text-sm">
@@ -74,25 +74,42 @@
         let username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
         let roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
 
-        async function checkBanned() {
+        let bannedUsers = [];
+
+        async function fetchBansAndCheck() {
             const banSnapshot = await getDocs(collection(db, "rooms", roomId, "bans"));
+            bannedUsers = [];
             let isBanned = false;
-            banSnapshot.forEach((doc) => {
-                if (doc.data().name === username) {
+            banSnapshot.forEach((docSnap) => {
+                const name = docSnap.data().name;
+                bannedUsers.push(name);
+                if (name === username) {
                     isBanned = true;
                 }
             });
             if (isBanned) {
-                alert("차단된 닉네임입니다.");
+                alert("밴된 닉네임입니다.");
                 location.reload();
             }
         }
 
-        await checkBanned();
+        await fetchBansAndCheck();
         document.getElementById('room-title').innerText = `# ${roomId} 방 (${username})`;
 
         let unsubscribe = null;
+        let unsubscribeBans = null;
         let replyingTo = null;
+
+        function watchBans() {
+            if (unsubscribeBans) unsubscribeBans();
+            unsubscribeBans = onSnapshot(collection(db, "rooms", roomId, "bans"), (snapshot) => {
+                bannedUsers = [];
+                snapshot.forEach((docSnap) => {
+                    bannedUsers.push(docSnap.data().name);
+                });
+                loadMessages();
+            });
+        }
 
         function loadMessages() {
             const chatWindow = document.getElementById('chat-window');
@@ -104,32 +121,47 @@
                 chatWindow.innerHTML = '';
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
-                    const docId = docSnap.id;
                     const isMe = data.sender === username;
+                    const isUserBanned = bannedUsers.includes(data.sender);
 
                     const messageRow = document.createElement('div');
                     messageRow.className = `message-row flex flex-col ${isMe ? 'items-end' : 'items-start'} relative group`;
 
-                    let replyHtml = '';
-                    if (data.replyTo) {
-                        replyHtml = `<div class="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded mb-1 border-l-2 border-black">
-                            <b>${data.replyTo.sender}</b>에게 답장: ${data.replyTo.text}
-                        </div>`;
-                    }
-
-                    messageRow.innerHTML = `
-                        <div class="flex items-center gap-1.5 mx-1 mb-0.5">
-                            <span class="text-[11px] text-gray-400">${data.sender}</span>
-                            <div class="action-buttons opacity-0 transition-opacity duration-150 flex gap-1 text-[10px]">
-                                <button onclick="setReply('${data.sender}', '${data.text.replace(/'/g, "\\'")}')" class="bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300 text-gray-700">답장</button>
-                                <button onclick="banUser('${data.sender}', '${docId}')" class="bg-red-100 px-1.5 py-0.5 rounded hover:bg-red-200 text-red-600 font-bold">밴</button>
+                    if (isUserBanned) {
+                        const uniqueId = 'hidden-msg-' + Math.random().toString(36).substr(2, 9);
+                        messageRow.innerHTML = `
+                            <div class="flex items-center gap-1.5 mx-1 mb-0.5">
+                                <span class="text-[11px] text-gray-400">${data.sender}</span>
                             </div>
-                        </div>
-                        ${replyHtml}
-                        <div class="max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-black text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none shadow-sm'}">
-                            ${data.text}
-                        </div>
-                    `;
+                            <div onclick="document.getElementById('${uniqueId}').classList.toggle('hidden')" class="max-w-[75%] px-3 py-1.5 rounded-xl text-xs bg-gray-200 text-gray-600 cursor-pointer border border-gray-300">
+                                밴되었습니다(터치하면 볼 수 있음)
+                            </div>
+                            <div id="${uniqueId}" class="hidden max-w-[75%] px-4 py-2 rounded-2xl text-sm bg-gray-100 border text-gray-500 mt-1">
+                                ${data.text}
+                            </div>
+                        `;
+                    } else {
+                        let replyHtml = '';
+                        if (data.replyTo) {
+                            replyHtml = `<div class="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded mb-1 border-l-2 border-black">
+                                <b>${data.replyTo.sender}</b>에게 답장: ${data.replyTo.text}
+                            </div>`;
+                        }
+
+                        messageRow.innerHTML = `
+                            <div class="flex items-center gap-1.5 mx-1 mb-0.5">
+                                <span class="text-[11px] text-gray-400">${data.sender}</span>
+                                <div class="action-buttons opacity-0 transition-opacity duration-150 flex gap-1 text-[10px]">
+                                    <button onclick="setReply('${data.sender}', '${data.text.replace(/'/g, "\\'")}')" class="bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300 text-gray-700">답장</button>
+                                    <button onclick="banUser('${data.sender}')" class="bg-red-100 px-1.5 py-0.5 rounded hover:bg-red-200 text-red-600 font-bold">밴</button>
+                                </div>
+                            </div>
+                            ${replyHtml}
+                            <div class="max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-black text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none shadow-sm'}">
+                                ${data.text}
+                            </div>
+                        `;
+                    }
                     chatWindow.appendChild(messageRow);
                 });
                 chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -152,7 +184,7 @@
             document.getElementById('reply-indicator').classList.add('hidden');
         };
 
-        window.banUser = async function(targetName, docId) {
+        window.banUser = async function(targetName) {
             const password = prompt(`관리자 비밀번호를 입력하세요:`);
             if (password !== "w3d74856") {
                 if (password !== null) alert("비밀번호가 틀렸습니다!");
@@ -164,8 +196,6 @@
                     name: targetName,
                     bannedAt: serverTimestamp()
                 });
-
-                await deleteDoc(doc(db, "rooms", roomId, "messages", docId));
                 alert(`'${targetName}'님이 밴되었습니다.`);
             } catch (e) {
                 console.error("밴 처리 실패:", e);
@@ -174,12 +204,6 @@
         };
 
         window.openBanModal = async function() {
-            const password = prompt("관리자 비밀번호를 입력하세요:");
-            if (password !== "w3d74856") {
-                if (password !== null) alert("비밀번호가 틀렸습니다!");
-                return;
-            }
-
             const container = document.getElementById('ban-list-container');
             container.innerHTML = '불러오는 중...';
             document.getElementById('ban-modal').classList.remove('hidden');
@@ -188,7 +212,7 @@
             container.innerHTML = '';
 
             if (banSnapshot.empty) {
-                container.innerHTML = '<p class="text-gray-400 text-center py-4">차단된 유저가 없습니다.</p>';
+                container.innerHTML = '<p class="text-gray-400 text-center py-4">밴된 유저가 없습니다.</p>';
                 return;
             }
 
@@ -211,13 +235,19 @@
         };
 
         window.unbanUser = async function(banId, targetName) {
+            const password = prompt("관리자 비밀번호를 입력하세요:");
+            if (password !== "w3d74856") {
+                if (password !== null) alert("비밀번호가 틀렸습니다!");
+                return;
+            }
+
             try {
                 await deleteDoc(doc(db, "rooms", roomId, "bans", banId));
-                alert(`'${targetName}'님의 차단이 해제되었습니다.`);
+                alert(`'${targetName}'님의 밴이 해제되었습니다.`);
                 openBanModal();
             } catch (e) {
-                console.error("차단 해제 실패:", e);
-                alert("차단 해제에 실패했습니다.");
+                console.error("밴 해제 실패:", e);
+                alert("밴 해제에 실패했습니다.");
             }
         };
 
@@ -225,6 +255,11 @@
             const input = document.getElementById('message-input');
             const text = input.value.trim();
             if (text === '') return;
+
+            if (bannedUsers.includes(username)) {
+                alert("밴된 상태이므로 메시지를 전송할 수 없습니다.");
+                return;
+            }
 
             try {
                 const messageData = {
@@ -254,6 +289,7 @@
             }
         }
 
+        watchBans();
         loadMessages();
     </script>
 </body>
