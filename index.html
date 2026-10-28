@@ -243,7 +243,7 @@
                                 </div>
                             </div>
                             ${replyHtml}
-                            <div class="max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-black text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none shadow-sm'}">
+                            <div ondblclick="toggleHeartReaction('${data.id}')" class="max-w-[75%] px-4 py-2 rounded-2xl text-sm cursor-pointer select-none ${isMe ? 'bg-black text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none shadow-sm'}">
                                 ${data.text}
                             </div>
                             ${reactionsHtml}
@@ -257,6 +257,35 @@
                 console.error("데이터 로드 에러:", error);
             });
         }
+
+        // 더블클릭 시 하트(❤️) 공감 토글 함수
+        window.toggleHeartReaction = async function(docId) {
+            try {
+                const docRef = doc(db, "rooms", roomId, "messages", docId);
+                const chatSnapshot = await getDocs(collection(db, "rooms", roomId, "messages"));
+                let targetData = null;
+                chatSnapshot.forEach(d => {
+                    if (d.id === docId) targetData = d.data();
+                });
+
+                if (targetData) {
+                    let reactions = targetData.reactions || {};
+                    let emoji = '❤️';
+                    if (!reactions[emoji]) {
+                        reactions[emoji] = [];
+                    }
+                    if (!reactions[emoji].includes(username)) {
+                        reactions[emoji].push(username);
+                    } else {
+                        reactions[emoji] = reactions[emoji].filter(u => u !== username);
+                        if (reactions[emoji].length === 0) delete reactions[emoji];
+                    }
+                    await updateDoc(docRef, { reactions: reactions });
+                }
+            } catch (e) {
+                console.error("하트 공감 에러:", e);
+            }
+        };
 
         window.openEmojiModal = function(docId) {
             targetMessageIdForReaction = docId;
