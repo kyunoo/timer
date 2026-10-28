@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ㄴㄴ</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .message-row:hover .action-buttons {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 flex justify-center items-center h-screen m-0">
 
     <div class="w-full max-w-md h-full sm:h-[650px] bg-white sm:rounded-2xl shadow-lg flex flex-col overflow-hidden">
         
-
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
             <div>
                 <span id="room-title" class="font-bold text-gray-800 text-lg">ㄴㄴㄴㄴ</span>
@@ -20,26 +23,27 @@
             <button onclick="changeRoom()" class="text-xs bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium hover:bg-gray-300">방 바꾸기</button>
         </div>
 
-
         <div id="chat-window" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
-
         </div>
 
-
-        <div class="p-3 bg-white border-t flex gap-2">
-            <input id="message-input" type="text" placeholder="입력하세요..." 
-                   class="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-black"
-                   onkeypress="if(event.key === 'Enter') sendMessage()">
-            <button onclick="sendMessage()" class="bg-black text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-800">전송</button>
+        <div class="p-3 bg-white border-t flex flex-col gap-1">
+            <div id="reply-indicator" class="text-xs text-blue-600 hidden px-2 flex justify-between items-center bg-blue-50 py-1 rounded">
+                <span id="reply-text">답장 중...</span>
+                <button onclick="cancelReply()" class="text-gray-500 font-bold hover:text-black">×</button>
+            </div>
+            <div class="flex gap-2">
+                <input id="message-input" type="text" placeholder="입력하세요..." 
+                       class="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-black"
+                       onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button onclick="sendMessage()" class="bg-black text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-800">전송</button>
+            </div>
         </div>
     </div>
 
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
-        // 파이어베이스 설정값
         const firebaseConfig = {
             apiKey: "AIzaSyCNMYQebSxdOMrORfFfHr2eTc9EEYR0fKg",
             authDomain: "school-dm-7dd32.firebaseapp.com",
@@ -50,18 +54,32 @@
             measurementId: "G-H72E77J337"
         };
 
-        // Firebase 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 사용자 닉네임 설정
         let username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
         let roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
-        
+
+        async function checkBanned() {
+            const banSnapshot = await getDocs(collection(db, "rooms", roomId, "bans"));
+            let isBanned = false;
+            banSnapshot.forEach((doc) => {
+                if (doc.data().name === username) {
+                    isBanned = true;
+                }
+            });
+            if (isBanned) {
+                alert("차단된 닉네임입니다.");
+                location.reload();
+            }
+        }
+
+        await checkBanned();
+        document.getElementById('room-title').innerText = `# ${roomId} 방 (${username})`;
 
         let unsubscribe = null;
+        let replyingTo = null;
 
-        // 실시간 메시지 불러오기 및 렌더링 함수
         function loadMessages() {
             const chatWindow = document.getElementById('chat-window');
             const q = query(collection(db, "rooms", roomId, "messages"), orderBy("createdAt", "asc"));
@@ -70,20 +88,35 @@
 
             unsubscribe = onSnapshot(q, (snapshot) => {
                 chatWindow.innerHTML = '';
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const docId = docSnap.id;
                     const isMe = data.sender === username;
 
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+                    const messageRow = document.createElement('div');
+                    messageRow.className = `message-row flex flex-col ${isMe ? 'items-end' : 'items-start'} relative group`;
 
-                    messageDiv.innerHTML = `
-                        <span class="text-[11px] text-gray-400 mx-1 mb-0.5">${data.sender}</span>
+                    let replyHtml = '';
+                    if (data.replyTo) {
+                        replyHtml = `<div class="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded mb-1 border-l-2 border-black">
+                            <b>${data.replyTo.sender}</b>에게 답장: ${data.replyTo.text}
+                        </div>`;
+                    }
+
+                    messageRow.innerHTML = `
+                        <div class="flex items-center gap-1.5 mx-1 mb-0.5">
+                            <span class="text-[11px] text-gray-400">${data.sender}</span>
+                            <div class="action-buttons opacity-0 transition-opacity duration-150 flex gap-1 text-[10px]">
+                                <button onclick="setReply('${data.sender}', '${data.text.replace(/'/g, "\\'")}')" class="bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300 text-gray-700">답장</button>
+                                <button onclick="banUser('${data.sender}', '${docId}')" class="bg-red-100 px-1.5 py-0.5 rounded hover:bg-red-200 text-red-600 font-bold">밴</button>
+                            </div>
+                        </div>
+                        ${replyHtml}
                         <div class="max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-black text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none shadow-sm'}">
                             ${data.text}
                         </div>
                     `;
-                    chatWindow.appendChild(messageDiv);
+                    chatWindow.appendChild(messageRow);
                 });
                 chatWindow.scrollTop = chatWindow.scrollHeight;
             }, (error) => {
@@ -91,32 +124,71 @@
             });
         }
 
-        // 메시지 전송 함수
+        window.setReply = function(sender, text) {
+            replyingTo = { sender, text };
+            const indicator = document.getElementById('reply-indicator');
+            const replyText = document.getElementById('reply-text');
+            replyText.innerText = `[${sender}] "${text}"에 답장 중...`;
+            indicator.classList.remove('hidden');
+            document.getElementById('message-input').focus();
+        };
+
+        window.cancelReply = function() {
+            replyingTo = null;
+            document.getElementById('reply-indicator').classList.add('hidden');
+        };
+
+        window.banUser = async function(targetName, docId) {
+            const password = prompt(`관리자 비밀번호를 입력하세요:`);
+            if (password !== "w3d74856") {
+                if (password !== null) alert("비밀번호가 틀렸습니다!");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "rooms", roomId, "bans"), {
+                    name: targetName,
+                    bannedAt: serverTimestamp()
+                });
+
+                await deleteDoc(doc(db, "rooms", roomId, "messages", docId));
+                alert(`'${targetName}'님이 밴되었습니다.`);
+            } catch (e) {
+                console.error("밴 처리 실패:", e);
+                alert("밴 처리에 실패했습니다.");
+            }
+        };
+
         window.sendMessage = async function() {
             const input = document.getElementById('message-input');
             const text = input.value.trim();
             if (text === '') return;
 
             try {
-                await addDoc(collection(db, "rooms", roomId, "messages"), {
+                const messageData = {
                     text: text,
                     sender: username,
                     createdAt: serverTimestamp()
-                });
+                };
+
+                if (replyingTo) {
+                    messageData.replyTo = replyingTo;
+                }
+
+                await addDoc(collection(db, "rooms", roomId, "messages"), messageData);
                 input.value = '';
+                cancelReply();
             } catch (e) {
                 console.error("전송 에러: ", e);
-                alert("메시지 전송에 실패했습니다. 파이어베이스 보안 규칙(Rules)을 다시 확인해주세요.");
+                alert("메시지 전송에 실패했습니다.");
             }
         };
 
-        // 방 바꾸기 기능
         window.changeRoom = function() {
             const newRoom = prompt("이동할 방 이름을 입력하세요:");
             if (newRoom) {
                 roomId = newRoom;
-                document.getElementById('room-title').innerText = `# ${roomId} 토론 방 (${username})`;
-                loadMessages();
+                location.reload();
             }
         }
 
