@@ -21,6 +21,7 @@
                 <p class="text-xs text-gray-500">ㄴㄴㄴㄴㄴㄴ</p>
             </div>
             <div class="flex gap-1.5">
+                <button onclick="changeName()" class="text-xs bg-gray-100 px-2 py-1.5 rounded-lg font-medium hover:bg-gray-200 text-gray-700">이름 바꾸기</button>
                 <button onclick="openBanModal()" class="text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded-lg font-medium hover:bg-red-100">밴 목록</button>
                 <button onclick="changeRoom()" class="text-xs bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium hover:bg-gray-300">방 바꾸기</button>
             </div>
@@ -71,8 +72,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        let username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
-        let roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
+        // 브라우저 저장소(localStorage)에서 이름과 방 이름 불러오기 (없을 때만 물어봄)
+        let username = localStorage.getItem("chat_username");
+        if (!username) {
+            username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
+            localStorage.setItem("chat_username", username);
+        }
+
+        let roomId = localStorage.getItem("chat_roomid");
+        if (!roomId) {
+            roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
+            localStorage.setItem("chat_roomid", roomId);
+        }
 
         let bannedUsers = [];
 
@@ -89,6 +100,7 @@
             });
             if (isBanned) {
                 alert("밴된 닉네임입니다.");
+                localStorage.removeItem("chat_username"); // 밴 당했으면 정보 초기화
                 location.reload();
             }
         }
@@ -251,6 +263,14 @@
             }
         };
 
+        window.changeName = function() {
+            const newName = prompt("변경할 닉네임을 입력하세요:");
+            if (newName) {
+                localStorage.setItem("chat_username", newName);
+                location.reload();
+            }
+        };
+
         window.sendMessage = async function() {
             const input = document.getElementById('message-input');
             const text = input.value.trim();
@@ -284,7 +304,7 @@
         window.changeRoom = function() {
             const newRoom = prompt("이동할 방 이름을 입력하세요:");
             if (newRoom) {
-                roomId = newRoom;
+                localStorage.setItem("chat_roomid", newRoom);
                 location.reload();
             }
         }
