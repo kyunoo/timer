@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ㄴㄴ</title>
+    <title>박현우가 만든 좀 쩌는거</title>
+    <!-- 모바일 앱처럼 보이게 하는 설정 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="박현우가 만든 좀 쩌는거">
+    
+    <!-- 아이콘 설정 (깃허브에 icon.png 파일을 업로드해두면 앱 아이콘으로 자동 인식됩니다) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .message-row:hover .action-buttons {
@@ -17,8 +26,8 @@
         
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
             <div>
-                <span id="room-title" class="font-bold text-gray-800 text-lg">ㄴㄴㄴㄴ</span>
-                <p class="text-xs text-gray-500">ㄴㄴㄴㄴㄴㄴ</p>
+                <span id="room-title" class="font-bold text-gray-800 text-lg">박현우가 만든 좀 쩌는거</span>
+                <p class="text-xs text-gray-500">실시간 토론 DM</p>
             </div>
             <div class="flex gap-1.5">
                 <button onclick="changeName()" class="text-xs bg-gray-100 px-2 py-1.5 rounded-lg font-medium hover:bg-gray-200 text-gray-700">이름 바꾸기</button>
@@ -72,7 +81,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 브라우저 저장소(localStorage)에서 이름과 방 이름 불러오기 (없을 때만 물어봄)
+        // 알림 권한 요청
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
         let username = localStorage.getItem("chat_username");
         if (!username) {
             username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
@@ -86,6 +99,7 @@
         }
 
         let bannedUsers = [];
+        let isInitialLoad = true; // 첫 로딩 시 알림 폭탄 방지용
 
         async function fetchBansAndCheck() {
             const banSnapshot = await getDocs(collection(db, "rooms", roomId, "bans"));
@@ -100,7 +114,7 @@
             });
             if (isBanned) {
                 alert("밴된 닉네임입니다.");
-                localStorage.removeItem("chat_username"); // 밴 당했으면 정보 초기화
+                localStorage.removeItem("chat_username");
                 location.reload();
             }
         }
@@ -131,6 +145,26 @@
 
             unsubscribe = onSnapshot(q, (snapshot) => {
                 chatWindow.innerHTML = '';
+                
+                let docChanges = snapshot.docChanges();
+                if (!isInitialLoad) {
+                    docChanges.forEach((change) => {
+                        if (change.type === "added") {
+                            const data = change.doc.data();
+                            // 내가 보낸 메시지가 아니고, 밴된 유저의 메시지가 아닐 때만 알림 발생
+                            if (data.sender !== username && !bannedUsers.includes(data.sender)) {
+                                if (Notification.permission === "granted") {
+                                    new Notification(`[${roomId}] ${data.sender}`, {
+                                        body: data.text,
+                                        icon: "icon.png"
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+                isInitialLoad = false;
+
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const isMe = data.sender === username;
