@@ -159,7 +159,7 @@
 
             if (unsubscribe) unsubscribe();
 
-            unsubscribe = onSnapshot(q, (snapshot) => {
+            unsubscribe = onSnapshot(q, async (snapshot) => {
                 chatWindow.innerHTML = '';
                 
                 let docs = [];
@@ -167,7 +167,20 @@
                     docs.push({ id: docSnap.id, ...docSnap.data() });
                 });
 
+                // 마지막 메시지에 대해 내가 읽었음을 기록 (내가 보낸 메시지가 아닐 때)
                 let lastMsg = docs.length > 0 ? docs[docs.length - 1] : null;
+                if (lastMsg && lastMsg.sender !== username) {
+                    let readBy = lastMsg.readBy || [];
+                    if (!readBy.includes(username)) {
+                        readBy.push(username);
+                        try {
+                            const docRef = doc(db, "rooms", roomId, "messages", lastMsg.id);
+                            await updateDoc(docRef, { readBy: readBy });
+                        } catch (e) {
+                            console.error("읽음 처리 에러:", e);
+                        }
+                    }
+                }
 
                 let docChanges = snapshot.docChanges();
                 if (!isInitialLoad) {
@@ -228,9 +241,10 @@
                             }
                         }
 
+                        // 마지막 메시지 밑에 읽은 사람 닉네임 표시
                         let readStatusHtml = '';
-                        if (isLastMessage && isMe) {
-                            readStatusHtml = `<span class="text-[10px] text-gray-400 mt-0.5 mr-1">읽음</span>`;
+                        if (isLastMessage && data.readBy && data.readBy.length > 0) {
+                            readStatusHtml = `<span class="text-[10px] text-gray-400 mt-0.5 mr-1">읽음: ${data.readBy.join(', ')}</span>`;
                         }
 
                         messageRow.innerHTML = `
