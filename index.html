@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수업 토론 DM</title>
+    <title>ㄴㄴ</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -14,8 +14,8 @@
         <!-- 상단 헤더 (방 정보 및 내 닉네임) -->
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
             <div>
-                <span id="room-title" class="font-bold text-gray-800 text-lg">토론 방</span>
-                <p class="text-xs text-gray-500">선생님 허가 토론용</p>
+                <span id="room-title" class="font-bold text-gray-800 text-lg">ㄴㄴㄴㄴ</span>
+                <p class="text-xs text-gray-500">ㄴㄴㄴㄴㄴㄴ</p>
             </div>
             <button onclick="changeRoom()" class="text-xs bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium hover:bg-gray-300">방 바꾸기</button>
         </div>
@@ -27,7 +27,7 @@
 
         <!-- 하단 입력창 -->
         <div class="p-3 bg-white border-t flex gap-2">
-            <input id="message-input" type="text" placeholder="토론 의견을 조용히 입력하세요..." 
+            <input id="message-input" type="text" placeholder="입력하세요..." 
                    class="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-black"
                    onkeypress="if(event.key === 'Enter') sendMessage()">
             <button onclick="sendMessage()" class="bg-black text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-800">전송</button>
@@ -56,9 +56,8 @@
 
         // 사용자 닉네임 설정
         let username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
-        let roomId = prompt("참여할 토론 방 이름(코드)을 입력해주세요 (예: room1):") || "default_room";
+        let roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
         
-        document.getElementById('room-title').innerText = `# ${roomId} 토론 방 (${username})`;
 
         let unsubscribe = null;
 
@@ -113,7 +112,7 @@
 
         // 방 바꾸기 기능
         window.changeRoom = function() {
-            const newRoom = prompt("이동할 토론 방 이름을 입력하세요:");
+            const newRoom = prompt("이동할 방 이름을 입력하세요:");
             if (newRoom) {
                 roomId = newRoom;
                 document.getElementById('room-title').innerText = `# ${roomId} 토론 방 (${username})`;
