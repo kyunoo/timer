@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>박현우가 만든 좀 쩌는거</title>
-    <!-- 모바일 앱처럼 보이게 하는 설정 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="박현우가 만든 좀 쩌는거">
     
-    <!-- 아이콘 설정 (깃허브에 icon.png 파일을 업로드해두면 앱 아이콘으로 자동 인식됩니다) -->
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="icon" type="image/png" href="icon.png">
+    <!-- 깃허브 Raw 이미지 주소 적용 -->
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/kyunoo/timer/main/icon.png">
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/kyunoo/timer/main/icon.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -27,7 +26,7 @@
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
             <div>
                 <span id="room-title" class="font-bold text-gray-800 text-lg">박현우가 만든 좀 쩌는거</span>
-                <p class="text-xs text-gray-500">실시간 토론 DM</p>
+                <p class="text-xs text-gray-500">악</p>
             </div>
             <div class="flex gap-1.5">
                 <button onclick="changeName()" class="text-xs bg-gray-100 px-2 py-1.5 rounded-lg font-medium hover:bg-gray-200 text-gray-700">이름 바꾸기</button>
@@ -81,25 +80,24 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 알림 권한 요청
         if ("Notification" in window && Notification.permission !== "granted") {
             Notification.requestPermission();
         }
 
         let username = localStorage.getItem("chat_username");
         if (!username) {
-            username = prompt("사용할 닉네임(이름)을 입력해주세요:") || "익명";
+            username = prompt("니 이름을 입력해주세요:") || "익명";
             localStorage.setItem("chat_username", username);
         }
 
         let roomId = localStorage.getItem("chat_roomid");
         if (!roomId) {
-            roomId = prompt("참여할 방 이름(코드)을 입력해주세요 :") || "default_room";
+            roomId = prompt("참여할 방 이름을 입력해주세요 :") || "default_room";
             localStorage.setItem("chat_roomid", roomId);
         }
 
         let bannedUsers = [];
-        let isInitialLoad = true; // 첫 로딩 시 알림 폭탄 방지용
+        let isInitialLoad = true;
 
         async function fetchBansAndCheck() {
             const banSnapshot = await getDocs(collection(db, "rooms", roomId, "bans"));
@@ -151,12 +149,11 @@
                     docChanges.forEach((change) => {
                         if (change.type === "added") {
                             const data = change.doc.data();
-                            // 내가 보낸 메시지가 아니고, 밴된 유저의 메시지가 아닐 때만 알림 발생
                             if (data.sender !== username && !bannedUsers.includes(data.sender)) {
                                 if (Notification.permission === "granted") {
                                     new Notification(`[${roomId}] ${data.sender}`, {
                                         body: data.text,
-                                        icon: "icon.png"
+                                        icon: "https://raw.githubusercontent.com/kyunoo/timer/main/icon.png"
                                     });
                                 }
                             }
@@ -233,7 +230,7 @@
         window.banUser = async function(targetName) {
             const password = prompt(`관리자 비밀번호를 입력하세요:`);
             if (password !== "w3d74856") {
-                if (password !== null) alert("비밀번호가 틀렸습니다!");
+                if (password !== null) alert("비밀번호가 틀렸습니다.");
                 return;
             }
 
@@ -311,7 +308,7 @@
             if (text === '') return;
 
             if (bannedUsers.includes(username)) {
-                alert("밴된 상태이므로 메시지를 전송할 수 없습니다.");
+                alert("너 밴임 ㅋㅋㅋㅋ.");
                 return;
             }
 
