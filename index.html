@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ㄴㄴ</title>
-    <!-- Tailwind CSS CDN -->
+    
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex justify-center items-center h-screen m-0">
 
     <div class="w-full max-w-md h-full sm:h-[650px] bg-white sm:rounded-2xl shadow-lg flex flex-col overflow-hidden">
         
-        <!-- 상단 헤더 (방 정보 및 내 닉네임) -->
+
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
             <div>
                 <span id="room-title" class="font-bold text-gray-800 text-lg">ㄴㄴㄴㄴ</span>
@@ -20,12 +20,12 @@
             <button onclick="changeRoom()" class="text-xs bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium hover:bg-gray-300">방 바꾸기</button>
         </div>
 
-        <!-- 메시지 대화창 -->
+
         <div id="chat-window" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
-            <!-- 메시지가 실시간으로 여기에 쌓입니다 -->
+
         </div>
 
-        <!-- 하단 입력창 -->
+
         <div class="p-3 bg-white border-t flex gap-2">
             <input id="message-input" type="text" placeholder="입력하세요..." 
                    class="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-black"
@@ -34,7 +34,7 @@
         </div>
     </div>
 
-    <!-- 파이어베이스 및 실시간 토론 로직 -->
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
